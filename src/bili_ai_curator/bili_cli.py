@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 
@@ -32,6 +34,14 @@ class BiliCLIError(RuntimeError):
         self.detail = detail or {}
 
 
+def resolve_default_executable(python_executable: str | None = None) -> str:
+    python_path = Path(python_executable or sys.executable)
+    sibling = python_path.with_name("bili.exe" if sys.platform == "win32" else "bili")
+    if sibling.is_file():
+        return str(sibling)
+    return shutil.which("bili") or "bili"
+
+
 class BiliCLI:
     def __init__(
         self,
@@ -39,7 +49,7 @@ class BiliCLI:
         runner: Callable[[list[str]], CommandResult] | None = None,
         timeout: int = 180,
     ) -> None:
-        self.executable = executable or shutil.which("bili") or "bili"
+        self.executable = executable or resolve_default_executable()
         self.timeout = timeout
         self._runner = runner or self._subprocess_runner
 

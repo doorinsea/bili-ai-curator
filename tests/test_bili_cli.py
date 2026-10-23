@@ -2,7 +2,12 @@ import json
 
 import pytest
 
-from bili_ai_curator.bili_cli import BiliCLI, BiliCLIError, CommandResult
+from bili_ai_curator.bili_cli import (
+    BiliCLI,
+    BiliCLIError,
+    CommandResult,
+    resolve_default_executable,
+)
 
 
 def ok(data):
@@ -85,3 +90,13 @@ def test_check_comment_returns_visibility():
     )
     result = cli.check_comment("BV123", 9)
     assert result["visible"] is True
+
+
+def test_resolve_default_executable_uses_virtualenv_sibling(tmp_path):
+    scripts = tmp_path / "Scripts"
+    scripts.mkdir()
+    python = scripts / "python.exe"
+    bili = scripts / "bili.exe"
+    python.touch()
+    bili.touch()
+    assert resolve_default_executable(python) == str(bili)
