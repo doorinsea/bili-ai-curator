@@ -230,6 +230,18 @@ class CuratorStore:
             warmup_started_at=row["warmup_started_at"],
         )
 
+    def earliest_warmup_started_at(self) -> str | None:
+        row = self._connection.execute(
+            """
+            SELECT warmup_started_at
+            FROM daily_state
+            WHERE warmup_started_at IS NOT NULL AND warmup_started_at <> ''
+            ORDER BY warmup_started_at ASC
+            LIMIT 1
+            """
+        ).fetchone()
+        return str(row["warmup_started_at"]) if row else None
+
     def set_daily_state(self, day: str, **changes: Any) -> DailyState:
         allowed = {
             "evaluated_count",

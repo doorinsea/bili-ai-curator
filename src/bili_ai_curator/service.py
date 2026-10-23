@@ -72,8 +72,9 @@ class CuratorService:
     def _daily_cap(self, day: str, now: datetime) -> tuple[int, str | None]:
         state = self.store.daily_state(day)
         if not state.warmup_started_at:
+            persisted_start = self.store.earliest_warmup_started_at()
             state = self.store.set_daily_state(
-                day, warmup_started_at=now.isoformat()
+                day, warmup_started_at=persisted_start or now.isoformat()
             )
         started = datetime.fromisoformat(state.warmup_started_at).astimezone(SHANGHAI)
         elapsed_hours = max(0.0, (now - started).total_seconds() / 3600)

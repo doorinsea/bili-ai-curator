@@ -143,3 +143,29 @@ def test_insufficient_balance_posts_status(tmp_path: Path):
     )
     assert result.stop_reason == "insufficient_balance"
     assert "余额不足" in bili.comments[-1][1]
+
+
+def test_warmup_start_persists_across_days(tmp_path: Path):
+    store = CuratorStore(tmp_path / "state.db")
+    config = make_config()
+    config = AppConfig(
+        owner_uid=config.owner_uid,
+        deepseek=config.deepseek,
+        schedule=config.schedule,
+        quality=config.quality,
+        warmup=WarmupConfig(48, (1, 3, 5)),
+        topics=config.topics,
+        dry_run=True,
+    )
+    store.set_daily_state(
+        "2026-10-20", warmup_started_at="2026-10-20T00:00:00+08:00"
+    )
+    service = CuratorService(
+        config, store, FakeBili(), FakeDeepSeek(0.9), sleeper=lambda _: None
+    )
+    cap, reason = service._daily_cap(
+        "2026-10-22",
+        datetime(2026, 10, 22, 12, 0, tzinfo=ZoneInfo("Asia/Shanghai")),
+    )
+    assert reason is None
+    assert cap == 1
