@@ -198,9 +198,8 @@ class CuratorService:
             return CycleResult(stop_reason="outside_active_hours", dry_run=self.config.dry_run)
 
         cap, warmup_reason = self._daily_cap(day, now)
-        if warmup_reason:
-            return CycleResult(stop_reason=warmup_reason, dry_run=self.config.dry_run)
-        if state.comments_sent >= cap:
+        can_post = warmup_reason is None
+        if can_post and state.comments_sent >= cap:
             self.store.set_daily_state(day, stop_reason="quota_complete")
             return CycleResult(stop_reason="quota_complete", dry_run=self.config.dry_run)
 
@@ -253,9 +252,10 @@ class CuratorService:
             except DeepSeekError as exc:
                 if exc.code in {"insufficient_balance", "auth_error"}:
                     self.store.set_daily_state(day, stop_reason="insufficient_balance")
-                    self._status_comment(
-                        "insufficient_balance", owner_name, ordered, day
-                    )
+                    if can_post:
+                        self._status_comment(
+                            "insufficient_balance", owner_name, ordered, day
+                        )
                     return CycleResult(
                         evaluated=evaluated,
                         posted=posted,
@@ -308,7 +308,8 @@ class CuratorService:
                 )
                 if low_streak >= self.config.quality.low_quality_limit:
                     self.store.set_daily_state(day, stop_reason="low_quality")
-                    self._status_comment("low_quality", owner_name, ordered, day)
+                    if can_post:
+                        self._status_comment("low_quality", owner_name, ordered, day)
                     return CycleResult(
                         evaluated=evaluated,
                         posted=posted,
@@ -325,6 +326,14 @@ class CuratorService:
             )
             if evaluation.total < self.config.quality.threshold:
                 continue
+
+            if not can_post:
+                return CycleResult(
+                    evaluated=evaluated,
+                    posted=0,
+                    stop_reason="warmup_read_only",
+                    dry_run=False,
+                )
 
             sequence = self.store.daily_state(day).comments_sent + 1
             body = self.deepseek.generate_comment(
@@ -392,7 +401,7 @@ class CuratorService:
         return CycleResult(
             evaluated=evaluated,
             posted=posted,
-            stop_reason="ok",
+            stop_reason="warmup_read_only" if not can_post else "ok",
             dry_run=self.config.dry_run,
         )
 
@@ -402,8 +411,11 @@ class CuratorService:
             result = self.run_once()
             if result.stop_reason in WRITE_STOP_CODES | {"low_quality", "insufficient_balance"}:
                 break
-            delay_minutes = random.uniform(
-                self.config.schedule.poll_minutes_min,
-                self.config.schedule.poll_minutes_max,
-            )
+            if result.stop_reason == "warmup_read_only":
+                delay_minutes = random.uniform(60, 120)
+            else:
+                delay_minutes = random.uniform(
+                    self.config.schedule.poll_minutes_min,
+                    self.config.schedule.poll_minutes_max,
+                )
             stop_event.wait(delay_minutes * 60)

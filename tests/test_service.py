@@ -169,3 +169,28 @@ def test_warmup_start_persists_across_days(tmp_path: Path):
     )
     assert reason is None
     assert cap == 1
+
+
+def test_warmup_scans_without_posting(tmp_path: Path):
+    store = CuratorStore(tmp_path / "state.db")
+    config = make_config()
+    config = AppConfig(
+        owner_uid=config.owner_uid,
+        deepseek=config.deepseek,
+        schedule=config.schedule,
+        quality=config.quality,
+        warmup=WarmupConfig(48, (1, 3, 5)),
+        topics=config.topics,
+        dry_run=False,
+    )
+    bili = FakeBili()
+    service = CuratorService(
+        config, store, bili, FakeDeepSeek(0.9), sleeper=lambda _: None
+    )
+    result = service.run_once(
+        datetime(2026, 10, 23, 10, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+    )
+    assert result.stop_reason == "warmup_read_only"
+    assert result.evaluated > 0
+    assert result.posted == 0
+    assert bili.comments == []
