@@ -1,0 +1,129 @@
+{
+  "owner_uid": 0,
+  "dry_run": true,
+  "deepseek": {
+    "api_base": "https://api.deepseek.com/v1",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "model": "deepseek-flash"
+  },
+  "schedule": {
+    "active_start": "09:00",
+    "active_end": "23:30",
+    "poll_minutes_min": 10,
+    "poll_minutes_max": 20,
+    "comment_gap_minutes_min": 20,
+    "comment_gap_minutes_max": 45
+  },
+  "quality": {
+    "threshold": 0.72,
+    "absolute_floor": 0.62,
+    "low_quality_limit": 10,
+    "daily_limit": 5,
+    "max_evaluations_per_cycle": 12
+  },
+  "warmup": {
+    "read_only_hours": 48,
+    "daily_caps": [
+      1,
+      3,
+      5
+    ]
+  },
+  "topics": {
+    "ai_knowledge": {
+      "enabled": true,
+      "keywords": [
+        "新模型",
+        "大模型",
+        "DeepSeek",
+        "Claude",
+        "ChatGPT",
+        "Gemini",
+        "Qwen",
+        "Kimi",
+        "Agent",
+        "RAG",
+        "多模态",
+        "视频生成",
+        "AI编程",
+        "本地模型",
+        "推理模型"
+      ],
+      "exclude": [
+        "课程广告",
+        "搬运"
+      ],
+      "max_age_days": 7
+    },
+    "ai_derivative": {
+      "enabled": true,
+      "keywords": [
+        "DeepSeek大肥鱼",
+        "DeepSeek拟人",
+        "Claude二创",
+        "ChatGPT二创",
+        "Gemini拟人",
+        "Qwen拟人",
+        "Kimi拟人",
+        "AI动画",
+        "AI小剧场",
+        "AI整活"
+      ],
+      "exclude": [
+        "课程广告"
+      ],
+      "max_age_days": 30
+    },
+    "zzz": {
+      "enabled": true,
+      "keywords": [
+        "绝区零",
+        "版本更新",
+        "角色PV",
+        "剧情",
+        "式舆防卫战",
+        "危局强袭战",
+        "配队",
+        "攻略",
+        "数值分析",
+        "高能操作"
+      ],
+      "exclude": [],
+      "max_age_days": 14
+    },
+    "hsr": {
+      "enabled": true,
+      "keywords": [
+        "崩坏星穹铁道",
+        "星铁",
+        "版本更新",
+        "角色PV",
+        "剧情",
+        "配队",
+        "攻略",
+        "模拟宇宙",
+        "虚构叙事",
+        "末日幻影",
+        "高能操作"
+      ],
+      "exclude": [],
+      "max_age_days": 14
+    },
+    "valorant": {
+      "enabled": true,
+      "keywords": [
+        "无畏契约",
+        "VALORANT",
+        "新特工",
+        "新地图",
+        "新皮肤",
+        "职业比赛",
+        "高光",
+        "战术讲解",
+        "复盘"
+      ],
+      "exclude": [],
+      "max_age_days": 7
+    }
+  }
+}
