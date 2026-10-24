@@ -353,7 +353,7 @@ class CuratorService:
                     evaluated=evaluated,
                     posted=0,
                     stop_reason="warmup_read_only",
-                    dry_run=False,
+                    dry_run=self.config.dry_run,
                 )
 
             sequence = self.store.daily_state(day).comments_sent + 1

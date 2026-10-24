@@ -181,7 +181,7 @@ def test_warmup_scans_without_posting(tmp_path: Path):
         quality=config.quality,
         warmup=WarmupConfig(48, (1, 3, 5)),
         topics=config.topics,
-        dry_run=False,
+        dry_run=True,
     )
     bili = FakeBili()
     service = CuratorService(
@@ -193,6 +193,7 @@ def test_warmup_scans_without_posting(tmp_path: Path):
     assert result.stop_reason == "warmup_read_only"
     assert result.evaluated > 0
     assert result.posted == 0
+    assert result.dry_run is True
     assert bili.comments == []
 
 
