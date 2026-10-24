@@ -13,7 +13,7 @@ from bili_ai_curator.config import (
 from bili_ai_curator.db import CuratorStore
 from bili_ai_curator.deepseek import DeepSeekError
 from bili_ai_curator.models import Evaluation
-from bili_ai_curator.service import CuratorService
+from bili_ai_curator.service import CuratorService, parse_duration
 
 
 def make_config(dry_run: bool = True) -> AppConfig:
@@ -194,3 +194,10 @@ def test_warmup_scans_without_posting(tmp_path: Path):
     assert result.evaluated > 0
     assert result.posted == 0
     assert bili.comments == []
+
+
+def test_parse_duration_accepts_bilibili_card_formats():
+    assert parse_duration("4:02") == 242
+    assert parse_duration("1:02:03") == 3723
+    assert parse_duration(300) == 300
+    assert parse_duration(None) == 0

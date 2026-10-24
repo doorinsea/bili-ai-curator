@@ -46,6 +46,27 @@ def _parse_pubdate(value: str) -> datetime:
     return parsed.astimezone(SHANGHAI)
 
 
+def parse_duration(value: object) -> int:
+    if value is None or value == "":
+        return 0
+    if isinstance(value, (int, float)):
+        return max(0, int(value))
+    text = str(value).strip()
+    if not text:
+        return 0
+    if ":" not in text:
+        try:
+            return max(0, int(text))
+        except ValueError:
+            return 0
+    total = 0
+    for part in text.split(":"):
+        if not part.strip().isdigit():
+            return 0
+        total = total * 60 + int(part)
+    return total
+
+
 def _active_time(now: datetime, start: str, end: str) -> bool:
     start_time = clock_time.fromisoformat(start)
     end_time = clock_time.fromisoformat(end)
@@ -131,7 +152,7 @@ class CuratorService:
                 views=int(stat.get("view") or 0),
                 likes=int(stat.get("like") or 0),
                 comments=int(stat.get("reply") or 0),
-                duration=int(card.get("duration") or 0),
+                duration=parse_duration(card.get("duration")),
                 topic="",
                 source_count=int(card.get("source_count") or 1),
                 raw=raw,
