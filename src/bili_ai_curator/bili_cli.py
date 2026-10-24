@@ -54,16 +54,23 @@ class BiliCLI:
         self._runner = runner or self._subprocess_runner
 
     def _subprocess_runner(self, args: list[str]) -> CommandResult:
-        completed = subprocess.run(
-            [self.executable, *args],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="strict",
-            timeout=self.timeout,
-            shell=False,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                [self.executable, *args],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="strict",
+                timeout=self.timeout,
+                shell=False,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise BiliCLIError(
+                "command_timeout",
+                "bili command timed out after "
+                f"{self.timeout} seconds: {' '.join(args[:3])}",
+            ) from exc
         return CommandResult(
             stdout=completed.stdout,
             stderr=completed.stderr,

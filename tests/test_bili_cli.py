@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 import pytest
 
@@ -80,6 +81,20 @@ def test_watch_uses_bounded_context_options():
         "--max-chars",
         "6000",
     ]
+
+
+def test_watch_timeout_becomes_a_retryable_bili_error(monkeypatch):
+    def timed_out(command, **kwargs):
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr("bili_ai_curator.bili_cli.subprocess.run", timed_out)
+    cli = BiliCLI(executable="bili.exe", timeout=7)
+
+    with pytest.raises(BiliCLIError) as raised:
+        cli.watch("BV123")
+
+    assert raised.value.code == "command_timeout"
+    assert "timed out after 7 seconds" in raised.value.message
 
 
 def test_check_comment_returns_visibility():
