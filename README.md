@@ -38,14 +38,19 @@ Edit `config.json` and set:
 
 ## Login and Owner Setup
 
+Keep the Bilibili CLI profile inside the ignored `data` directory so Windows
+Scheduled Tasks can read it reliably:
+
 ```powershell
+$env:BILI_CLI_HOME = Join-Path (Get-Location) "data\bili-cli"
+New-Item -ItemType Directory -Force $env:BILI_CLI_HOME | Out-Null
 .\.venv\Scripts\bili.exe auth login
 .\.venv\Scripts\bili.exe owner set <owner-uid>
 .\.venv\Scripts\python.exe -m bili_ai_curator check
 ```
 
-The Bilibili credential is stored by `bili-cli` in `%APPDATA%\bili-cli`.
-This repository never stores that credential.
+`start.ps1` also selects this project-local profile. Credentials and Bilibili
+session data remain ignored by Git and are never written into tracked files.
 
 ## Dry Run
 
@@ -67,6 +72,11 @@ The service checks login, owner configuration, active hours, warm-up state,
 and the daily quota before browsing. It stops on Bilibili risk control,
 CAPTCHA, authentication expiry, a folded comment, or insufficient DeepSeek
 balance.
+
+`start.ps1` exits instead of starting a duplicate instance and appends runtime
+output to `logs/curator.log`. It is safe to launch at user logon with Windows
+Task Scheduler. When the computer is asleep or powered off, no discovery or
+commenting takes place; work resumes after the computer and network are back.
 
 ## Safety Behavior
 

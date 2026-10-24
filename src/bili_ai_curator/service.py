@@ -223,6 +223,17 @@ class CuratorService:
         if can_post and state.comments_sent >= cap:
             self.store.set_daily_state(day, stop_reason="quota_complete")
             return CycleResult(stop_reason="quota_complete", dry_run=self.config.dry_run)
+        if can_post and state.last_comment_at:
+            last_comment_at = datetime.fromisoformat(state.last_comment_at)
+            if last_comment_at.tzinfo is None:
+                last_comment_at = last_comment_at.replace(tzinfo=SHANGHAI)
+            elapsed_minutes = (
+                now - last_comment_at.astimezone(SHANGHAI)
+            ).total_seconds() / 60
+            if elapsed_minutes < self.config.schedule.comment_gap_minutes_min:
+                return CycleResult(
+                    stop_reason="comment_gap", dry_run=self.config.dry_run
+                )
 
         owner = self.bili.owner().get("owner") or {}
         owner_name = str(owner.get("name") or "").strip()
@@ -432,7 +443,12 @@ class CuratorService:
             result = self.run_once()
             if result.stop_reason in WRITE_STOP_CODES | {"low_quality", "insufficient_balance"}:
                 break
-            if result.stop_reason == "warmup_read_only":
+            if result.posted:
+                delay_minutes = random.uniform(
+                    self.config.schedule.comment_gap_minutes_min,
+                    self.config.schedule.comment_gap_minutes_max,
+                )
+            elif result.stop_reason == "warmup_read_only":
                 delay_minutes = random.uniform(60, 120)
             else:
                 delay_minutes = random.uniform(

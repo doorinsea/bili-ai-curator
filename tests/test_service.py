@@ -13,10 +13,14 @@ from bili_ai_curator.config import (
 from bili_ai_curator.db import CuratorStore
 from bili_ai_curator.deepseek import DeepSeekError
 from bili_ai_curator.models import Evaluation
-from bili_ai_curator.service import CuratorService, parse_duration
+from bili_ai_curator.service import CycleResult, CuratorService, parse_duration
 
 
-def make_config(dry_run: bool = True) -> AppConfig:
+def make_config(
+    dry_run: bool = True,
+    *,
+    comment_gap_minutes: tuple[int, int] = (1, 1),
+) -> AppConfig:
     topics = {
         name: TopicConfig(True, ("AI",), (), 30)
         for name in ["ai_knowledge", "ai_derivative", "zzz", "hsr", "valorant"]
@@ -24,7 +28,9 @@ def make_config(dry_run: bool = True) -> AppConfig:
     return AppConfig(
         owner_uid=1,
         deepseek=DeepSeekConfig("https://api.deepseek.com/v1", "key", "deepseek-flash"),
-        schedule=ScheduleConfig("00:00", "23:59", 1, 1, 1, 1),
+        schedule=ScheduleConfig(
+            "00:00", "23:59", 1, 1, comment_gap_minutes[0], comment_gap_minutes[1]
+        ),
         quality=QualityConfig(0.72, 0.62, 10, 5, 12),
         warmup=WarmupConfig(0, (5,)),
         topics=topics,
@@ -99,6 +105,20 @@ class FakeDeepSeek:
         return f"这个视频的第{video.bvid}点很有意思"
 
 
+class StopAfterOneWait:
+    def __init__(self):
+        self.waits = []
+        self._stopped = False
+
+    def is_set(self):
+        return self._stopped
+
+    def wait(self, seconds):
+        self.waits.append(seconds)
+        self._stopped = True
+        return True
+
+
 def test_ten_low_quality_videos_stop_day_and_post_status(tmp_path: Path):
     store = CuratorStore(tmp_path / "state.db")
     bili = FakeBili()
@@ -126,6 +146,56 @@ def test_quota_stops_before_discovery(tmp_path: Path):
     )
     assert result.stop_reason == "quota_complete"
     assert bili.comments == []
+
+
+def test_comment_gap_blocks_until_twenty_minutes_elapse(tmp_path: Path):
+    store = CuratorStore(tmp_path / "state.db")
+    store.set_daily_state(
+        "2026-10-23",
+        comments_sent=1,
+        last_comment_at="2026-10-23T10:00:00+08:00",
+    )
+    bili = FakeBili()
+    service = CuratorService(
+        make_config(dry_run=False, comment_gap_minutes=(20, 45)),
+        store,
+        bili,
+        FakeDeepSeek(0.9),
+        sleeper=lambda _: None,
+    )
+
+    result = service.run_once(
+        datetime(2026, 10, 23, 10, 19, 59, tzinfo=ZoneInfo("Asia/Shanghai"))
+    )
+
+    assert result.stop_reason == "comment_gap"
+    assert bili.comments == []
+
+    result = service.run_once(
+        datetime(2026, 10, 23, 10, 20, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+    )
+
+    assert result.posted == 1
+    assert len(bili.comments) == 1
+    assert store.daily_state("2026-10-23").comments_sent == 2
+
+
+def test_successful_comment_uses_comment_gap_before_next_cycle(tmp_path: Path):
+    store = CuratorStore(tmp_path / "state.db")
+    service = CuratorService(
+        make_config(comment_gap_minutes=(20, 45)),
+        store,
+        FakeBili(),
+        FakeDeepSeek(0.9),
+        sleeper=lambda _: None,
+    )
+    service.run_once = lambda: CycleResult(posted=1, stop_reason="ok")
+    stop_event = StopAfterOneWait()
+
+    service.run_forever(stop_event)
+
+    assert len(stop_event.waits) == 1
+    assert 20 * 60 <= stop_event.waits[0] <= 45 * 60
 
 
 def test_insufficient_balance_posts_status(tmp_path: Path):
